@@ -1,0 +1,109 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <title>EXP calculator</title>
+
+  <script type="text/javascript" src="js/jquery-2.1.3.min.js"></script>
+  <script type="text/javascript" src="js/jquery.xdomainajax.js"></script>
+  <script type="text/javascript" src="js/jquery.xpath.min.js"></script>
+
+  <script type="text/javascript">
+
+    function submitForm() {
+      var $selectedCreature = $("#creatures option:selected");
+      var creatureLink = $selectedCreature.val();
+      $.get(creatureLink, function(data) {
+        var $html = $(data.responseText);
+        var visibleText = $html.text();
+
+        var matches = /yield\s(\d+)\sexperience point/g.exec(visibleText);
+        var monsterExp = parseInt(matches[1]);
+
+        var expModifier = 1.0;
+
+        if ($('#happyhours').is(':checked')) {
+          expModifier += 0.5;
+        }
+
+        var eventsBonus = $('#eventsbonus').val();
+        expModifier += eventsBonus / 100;
+
+        var exp = monsterExp;
+        if ($('#partysharedexp').is(':checked')) {
+          var playersCount = $('#playerscount').val();
+          var differentProfessions = $("#professionscount option:selected").val();
+          var sharedExperienceBonus = 1.2;
+          switch(differentProfessions) {
+            case 2:
+              sharedExperienceBonus += 0.1;
+              break;
+            case 3:
+              sharedExperienceBonus += 0.4;
+              break;
+            case 4:
+              sharedExperienceBonus += 0.8;
+              break;
+            default:
+              break;
+          } 
+          exp *= sharedExperienceBonus / playersCount;
+        }
+
+        exp *= expModifier;
+
+        var level = $('#level').val();
+        var lowLevelBonus = 100 - (Math.max(2, Math.min(50, level)) - 2) * (2 + 1 / 12);
+        exp *= 1.0 + lowLevelBonus / 100;
+
+        exp = Math.floor(exp);
+
+        $('#exp').text(exp);
+      });
+    }
+
+    $(function () {
+      $('#partysharedexp').click(function() {
+        $('#playerscount').attr('disabled', !this.checked)
+        $('#professionscount').attr('disabled', !this.checked)
+      });
+
+      $.get('http://www.tibia.com/library/?subtopic=creatures', function(data) {
+        var $html = $(data.responseText);
+
+        var creatures = $html.xpath('//*[@id="creatures"]/div[5]/div/div/div/div/div');
+        for (var i = 0; i < creatures.length; i++) {
+          var $creatureElement = $(creatures[i]);
+
+          var creatureName = $creatureElement.text().trim();
+          var creatureLink = $creatureElement.children('a').attr('href');
+          var $optionElement = $('<option>', {
+            value: creatureLink,
+            text: creatureName
+          });
+
+          $('#creatures').append($optionElement);
+        }
+      });
+    });
+
+  </script>
+</head>
+<body>
+  <form action="javascript: submitForm()">
+    Level: <input type="number" id="level" value="1" min="1" max="1000"><br>
+    <input type="checkbox" id="happyhours" checked="checked">Happy Hours<br>
+    <input type="checkbox" id="partysharedexp">Party with shared experience consists of
+    <input type="number" id="playerscount" value="2" min="2" disabled="true"> players with
+    <select id="professionscount" disabled="true">
+      <option>1</option>
+      <option>2</option>
+      <option>3</option>
+      <option>4</option>
+    </select> different profession(s)<br>
+    Events bonus: <input type="number" id="eventsbonus" value="0" min="0">%<br>
+    Creature: <select id="creatures"></select><br>
+    <input type="submit" value="Submit"><br>
+    <b>EXP:</b> <div id="exp"></div>
+  </form>
+</body>
+</html>
