@@ -9,6 +9,8 @@
 
   <script type="text/javascript">
 
+    var expDict = {};
+
     function submitForm() {
       var $selectedCreature = $("#creatures option:selected");
       var creatureLink = $selectedCreature.val();
@@ -25,13 +27,13 @@
           expModifier += 0.5;
         }
 
-        var eventsBonus = $('#eventsbonus').val();
+        var eventsBonus = parseInt($('#eventsbonus').val());
         expModifier += eventsBonus / 100;
 
         var exp = monsterExp;
         if ($('#partysharedexp').is(':checked')) {
-          var playersCount = $('#playerscount').val();
-          var differentProfessions = $("#professionscount option:selected").val();
+          var playersCount = parseInt($('#playerscount').val());
+          var differentProfessions = parseInt($("#professionscount option:selected").val());
           var sharedExperienceBonus = 1.2;
           switch(differentProfessions) {
             case 2:
@@ -51,13 +53,14 @@
 
         exp *= expModifier;
 
-        var level = $('#level').val();
+        var level = parseInt($('#level').val());
         var lowLevelBonus = 100 - (Math.max(2, Math.min(50, level)) - 2) * (2 + 1 / 12);
         exp *= 1.0 + lowLevelBonus / 100;
 
         exp = Math.floor(exp);
 
         $('#exp').text(exp);
+        $('#killscount').text(Math.ceil((expDict[level + 1] - expDict[level]) / exp));
       });
     }
 
@@ -65,6 +68,26 @@
       $('#partysharedexp').click(function() {
         $('#playerscount').attr('disabled', !this.checked)
         $('#professionscount').attr('disabled', !this.checked)
+      });
+
+      $.get('http://www.tibia.com/library/?subtopic=experiencetable', function(data) {
+        var $html = $(data.responseText);
+
+        var expTables = $html.xpath('//*[@id="experiencetable"]/div[5]/div/div/table/tbody/tr[2]/td');
+        console.log(expTables);
+        for (var i = 0; i < expTables.length; i++) {
+          var $expTable = $(expTables[i]);
+
+          var rows = $expTable.find('tr');
+          for (var i = 1; i < rows.length; i++) {
+            var $row = $(rows[i]);
+
+            var columns = $row.find('td');
+            var level = $(columns[0]).text();
+            var exp = $(columns[1]).text();
+            expDict[level] = exp;
+          }
+        }
       });
 
       $.get('http://www.tibia.com/library/?subtopic=creatures', function(data) {
@@ -103,7 +126,8 @@
     Events bonus: <input type="number" id="eventsbonus" value="0" min="0">%<br>
     Creature: <select id="creatures"></select><br>
     <input type="submit" value="Submit"><br>
-    <b>EXP:</b> <div id="exp"></div>
+    <b>EXP:</b> <span id="exp"></span><br>
+    You need to kill <b><span id="killscount"></span></b> of these to lvl up
   </form>
 </body>
 </html>
